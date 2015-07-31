@@ -191,6 +191,7 @@ def run_script(script_path, fabric_env=None, process=None, **kwargs):
                 with tunnel.remote(proxy.port):
                     fabric_api.run('source {0} && {1}'.format(
                         remote_env_script_path, command))
+
             return actual_ctx._return_value
         finally:
             proxy.close()
@@ -306,6 +307,16 @@ class CredentialsHandler():
     def key_filename(self):
         """returns the ssh key to use when connecting to the remote host"""
         self.logger.debug('retrieving ssh key...')
+
+        if 'key' in self.fabric_env:
+            self.logger.info("building ssh key from key content")
+            with tempfile.NamedTemporaryFile(delete=False) as key_by_content:
+                key_by_content.write(self.fabric_env['key'])
+                key_by_content.flush()
+            self.logger.info("temporary key holder: {0}".format(
+                key_by_content.name))
+            return key_by_content.name
+
         if CLOUDIFY_MANAGER_PRIVATE_KEY_PATH in os.environ:
             key = os.environ[CLOUDIFY_MANAGER_PRIVATE_KEY_PATH]
         elif 'key_filename' not in self.fabric_env:
@@ -344,7 +355,6 @@ class CredentialsHandler():
 
 def _fabric_env(fabric_env, warn_only):
     """prepares fabric environment variables configuration
-
     :param fabric_env: fabric configuration
     """
     ctx.logger.info('preparing fabric environment...')
